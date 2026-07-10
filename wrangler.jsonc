@@ -19,10 +19,16 @@
 			"database_name": "musichell-savedata-db",
 			"database_id": "6ddd9d97-db0f-46f5-9beb-3f9e4c5ff843"
 		}
+	],
+	"secrets_store_secrets": [
+		{
+			"binding": "SESSION_TOKEN_SECRET",
+			"store_id": "da368489b2814fa9b1032c5f056bd2ec",
+			"secret_name": "musichell-session-token-secret"
+		}
 	]
 	/**
-	 * Set the shared account-session signing key with:
-	 * wrangler secret put SESSION_TOKEN_SECRET
-	 * Use the exact same value as the account worker.
+	 * Shared session signing secret comes from Secrets Store:
+	 * musichell-session-token-secret (binding SESSION_TOKEN_SECRET)
 	 */
 }

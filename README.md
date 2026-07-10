@@ -21,9 +21,9 @@ This Wrangler project lives at the repository root, outside Unity's `Assets` fol
 2. Copy the returned database id into `wrangler.jsonc` for `SAVEDATA_DB`.
 3. Apply the schema:
    `npx wrangler d1 execute musichell-savedata-db --remote --file=schema.sql`
-4. Store the shared session-signing secret as a secret:
-   `npx wrangler secret put SESSION_TOKEN_SECRET`
-5. Use the exact same `SESSION_TOKEN_SECRET` value as the account worker.
+4. Shared session signing uses Secrets Store binding `SESSION_TOKEN_SECRET`
+   → account secret `musichell-session-token-secret` (already configured in `wrangler.jsonc`).
+5. No per-worker `wrangler secret put SESSION_TOKEN_SECRET` is required.
 6. Run locally:
    `npm run dev`
 7. Deploy when ready:

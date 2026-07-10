@@ -1,7 +1,7 @@
 interface Env {
 	SAVEDATA_DB: D1Database;
 	STEAM_APP_ID: string;
-	SESSION_TOKEN_SECRET: string;
+	SESSION_TOKEN_SECRET: SecretsStoreSecret;
 	ALLOWED_ORIGIN?: string;
 }
 
@@ -249,8 +249,8 @@ function validateEnvironment(env: Env): string | null {
 		return 'SAVEDATA_DB binding is not configured.';
 	}
 
-	if (!env.SESSION_TOKEN_SECRET?.trim()) {
-		return 'SESSION_TOKEN_SECRET secret is not configured.';
+	if (!env.SESSION_TOKEN_SECRET) {
+		return 'SESSION_TOKEN_SECRET Secrets Store binding is not configured.';
 	}
 
 	return null;
@@ -772,7 +772,8 @@ async function verifySessionToken(
 		return { success: false, error: 'authToken payload is missing required claims.' };
 	}
 
-	const expectedSignature = await signHmacSha256(signingInput, env.SESSION_TOKEN_SECRET);
+	const sessionTokenSecret = await env.SESSION_TOKEN_SECRET.get();
+	const expectedSignature = await signHmacSha256(signingInput, sessionTokenSecret);
 	if (!constantTimeEqual(providedSignature, new Uint8Array(expectedSignature))) {
 		return { success: false, error: 'authToken signature is invalid.' };
 	}

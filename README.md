@@ -8,11 +8,11 @@ This Wrangler project lives at the repository root, outside Unity's `Assets` fol
 - `GET /api/savedata` — fetch the merged cloud save for the authenticated account
 - `POST /api/savedata/sync` — merge a client snapshot into cloud storage and return the winner
 - Validates the signed session token issued by `musichell-account-worker`
+- Intended payload is progress-only: high scores and skin unlock / seen state
 - Merge policy:
-  - Most keys: newest `updatedAtUnixMs` wins
   - Skin unlock / seen lists: union (unlocked / seen on either side always sticks)
   - Level scores and sticky best-score flags: highest numeric value wins
-  - Local leaderboard scores: highest score per player per board wins
+  - Other keys (if present from older clients): newest `updatedAtUnixMs` wins
 
 ## Setup
 

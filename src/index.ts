@@ -357,11 +357,15 @@ function normalizeEntry(value: unknown): { ok: true; value: SaveEntry } | { ok: 
 		return updatedAtUnixMs;
 	}
 
+	// Force score keys onto max-* policies so a lower client score can never overwrite cloud.
+	const inferredScorePolicy = inferScoreMergePolicy(key.value);
+	const effectiveMergePolicy = inferredScorePolicy ?? mergePolicy.value;
+
 	const entry: SaveEntry = {
 		key: key.value,
 		valueType: valueType.value,
 		updatedAtUnixMs: updatedAtUnixMs.value,
-		mergePolicy: mergePolicy.value,
+		mergePolicy: effectiveMergePolicy,
 	};
 
 	if (valueType.value === 'int') {
@@ -419,7 +423,7 @@ function mergeSnapshots(existing: SaveSnapshot, incoming: SaveSnapshot): SaveSna
 }
 
 function mergeEntries(left: SaveEntry, right: SaveEntry): SaveEntry {
-	const policy = left.mergePolicy === right.mergePolicy ? left.mergePolicy : preferMergePolicy(left.mergePolicy, right.mergePolicy);
+	const policy = resolveEffectiveMergePolicy(left, right);
 
 	if (policy === 'unlockedUnion' || policy === 'seenUnion') {
 		return mergeIdListUnion(left, right, policy);
@@ -438,6 +442,34 @@ function mergeEntries(left: SaveEntry, right: SaveEntry): SaveEntry {
 	}
 
 	return left.updatedAtUnixMs >= right.updatedAtUnixMs ? cloneEntry(left) : cloneEntry(right);
+}
+
+function resolveEffectiveMergePolicy(left: SaveEntry, right: SaveEntry): MergePolicy {
+	// Score keys always keep the highest value, even if a client mislabels the policy as "newest".
+	const scorePolicy = inferScoreMergePolicy(left.key) ?? inferScoreMergePolicy(right.key);
+	if (scorePolicy != null) {
+		return scorePolicy;
+	}
+
+	return left.mergePolicy === right.mergePolicy
+		? left.mergePolicy
+		: preferMergePolicy(left.mergePolicy, right.mergePolicy);
+}
+
+function inferScoreMergePolicy(key: string): MergePolicy | null {
+	if (key === 'player.hasLevelScoreSave') {
+		return 'maxInt';
+	}
+
+	if (key.endsWith('_FloatV2') || key.includes('_Float')) {
+		return 'maxFloat';
+	}
+
+	if (key.startsWith('LevelScore_')) {
+		return 'maxInt';
+	}
+
+	return null;
 }
 
 function preferMergePolicy(left: MergePolicy, right: MergePolicy): MergePolicy {

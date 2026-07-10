@@ -11,7 +11,8 @@ This Wrangler project lives at the repository root, outside Unity's `Assets` fol
 - Intended payload is progress-only: high scores and skin unlock / seen state
 - Merge policy:
   - Skin unlock / seen lists: union (unlocked / seen on either side always sticks)
-  - Level scores and sticky best-score flags: highest numeric value wins
+  - Level scores and sticky best-score flags: highest numeric value always wins
+  - Score keys are forced to max-merge by key name, so a lower pushed score cannot overwrite cloud
   - Other keys (if present from older clients): newest `updatedAtUnixMs` wins
 
 ## Setup

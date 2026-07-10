@@ -65,46 +65,61 @@ const corsHeaders: Record<string, string> = {
 
 export default {
 	async fetch(request, env): Promise<Response> {
-		const url = new URL(request.url);
+		try {
+			const url = new URL(request.url);
 
-		if (request.method === 'OPTIONS') {
-			return new Response(null, {
-				status: 204,
-				headers: buildCorsHeaders(request, env),
-			});
-		}
+			if (request.method === 'OPTIONS') {
+				return new Response(null, {
+					status: 204,
+					headers: buildCorsHeaders(request, env),
+				});
+			}
 
-		if (request.method === 'GET' && url.pathname === '/health') {
+			if (request.method === 'GET' && url.pathname === '/health') {
+				return json(
+					{
+						success: true,
+						worker: 'musichell-savedata-worker',
+						status: 'ready',
+						storage: 'd1',
+						hasSavedataDb: Boolean(env.SAVEDATA_DB),
+						hasSessionTokenSecretBinding: Boolean(env.SESSION_TOKEN_SECRET),
+					},
+					200,
+					request,
+					env,
+				);
+			}
+
+			if (request.method === 'GET' && url.pathname === '/api/savedata') {
+				return await getSaveData(request, env);
+			}
+
+			if (request.method === 'POST' && url.pathname === '/api/savedata/sync') {
+				return await syncSaveData(request, env);
+			}
+
 			return json(
 				{
-					success: true,
-					worker: 'musichell-savedata-worker',
-					status: 'ready',
-					storage: 'd1',
+					success: false,
+					error: 'Not found.',
 				},
-				200,
+				404,
+				request,
+				env,
+			);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unexpected worker error.';
+			return json(
+				{
+					success: false,
+					error: `Unhandled worker error: ${message}`,
+				},
+				500,
 				request,
 				env,
 			);
 		}
-
-		if (request.method === 'GET' && url.pathname === '/api/savedata') {
-			return getSaveData(request, env);
-		}
-
-		if (request.method === 'POST' && url.pathname === '/api/savedata/sync') {
-			return syncSaveData(request, env);
-		}
-
-		return json(
-			{
-				success: false,
-				error: 'Not found.',
-			},
-			404,
-			request,
-			env,
-		);
 	},
 } satisfies ExportedHandler<Env>;
 
@@ -804,7 +819,18 @@ async function verifySessionToken(
 		return { success: false, error: 'authToken payload is missing required claims.' };
 	}
 
-	const sessionTokenSecret = await env.SESSION_TOKEN_SECRET.get();
+	let sessionTokenSecret: string;
+	try {
+		sessionTokenSecret = await env.SESSION_TOKEN_SECRET.get();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : 'unknown error';
+		return { success: false, error: `Failed to read SESSION_TOKEN_SECRET from Secrets Store (${message}).` };
+	}
+
+	if (!sessionTokenSecret?.trim()) {
+		return { success: false, error: 'SESSION_TOKEN_SECRET from Secrets Store is empty.' };
+	}
+
 	const expectedSignature = await signHmacSha256(signingInput, sessionTokenSecret);
 	if (!constantTimeEqual(providedSignature, new Uint8Array(expectedSignature))) {
 		return { success: false, error: 'authToken signature is invalid.' };

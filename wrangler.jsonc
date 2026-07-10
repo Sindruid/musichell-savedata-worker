@@ -1,0 +1,28 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "musichell-savedata-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-05-16",
+	"observability": {
+		"enabled": true
+	},
+	"vars": {
+		"STEAM_APP_ID": "4249380"
+	},
+	"d1_databases": [
+		{
+			"binding": "SAVEDATA_DB",
+			"database_name": "musichell-savedata-db",
+			"database_id": "REPLACE_WITH_D1_DATABASE_ID"
+		}
+	]
+	/**
+	 * Set the shared account-session signing key with:
+	 * wrangler secret put SESSION_TOKEN_SECRET
+	 * Use the exact same value as the account worker.
+	 */
+}

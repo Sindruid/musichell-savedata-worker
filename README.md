@@ -1,0 +1,87 @@
+# MusicHell Save Data Worker
+
+This Wrangler project lives at the repository root, outside Unity's `Assets` folder, so Unity does not import it and it will never be included in a Unity build.
+
+## What it does
+
+- Exposes authenticated cloud save sync for Steam-linked accounts
+- `GET /api/savedata` — fetch the merged cloud save for the authenticated account
+- `POST /api/savedata/sync` — merge a client snapshot into cloud storage and return the winner
+- Validates the signed session token issued by `musichell-account-worker`
+- Merge policy:
+  - Most keys: newest `updatedAtUnixMs` wins
+  - Skin unlock / seen lists: union (unlocked / seen on either side always sticks)
+  - Level scores and sticky best-score flags: highest numeric value wins
+  - Local leaderboard scores: highest score per player per board wins
+
+## Setup
+
+1. Create a D1 database:
+   `npx wrangler d1 create musichell-savedata-db`
+2. Copy the returned database id into `wrangler.jsonc` for `SAVEDATA_DB`.
+3. Apply the schema:
+   `npx wrangler d1 execute musichell-savedata-db --remote --file=schema.sql`
+4. Store the shared session-signing secret as a secret:
+   `npx wrangler secret put SESSION_TOKEN_SECRET`
+5. Use the exact same `SESSION_TOKEN_SECRET` value as the account worker.
+6. Run locally:
+   `npm run dev`
+7. Deploy when ready:
+   `npm run deploy`
+
+## Expected sync request body
+
+```json
+{
+  "authToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "accountId": "acc_...",
+  "steamId": "7656119...",
+  "clientVersion": "1.0.0",
+  "snapshot": {
+    "version": 1,
+    "entries": [
+      {
+        "key": "PlayerSkinId",
+        "valueType": "int",
+        "intValue": 2,
+        "updatedAtUnixMs": 1760000000000,
+        "mergePolicy": "newest"
+      },
+      {
+        "key": "player.skins.unlocked",
+        "valueType": "string",
+        "stringValue": "{\"unlockedSkinIds\":[0,1,2,7]}",
+        "updatedAtUnixMs": 1760000000000,
+        "mergePolicy": "unlockedUnion"
+      },
+      {
+        "key": "LevelScore_<id>_FloatV2",
+        "valueType": "float",
+        "floatValue": 133.4,
+        "updatedAtUnixMs": 1760000000000,
+        "mergePolicy": "maxFloat"
+      }
+    ]
+  }
+}
+```
+
+## Expected sync response body
+
+```json
+{
+  "success": true,
+  "revision": 4,
+  "updatedAtUnixMs": 1760000000123,
+  "snapshot": {
+    "version": 1,
+    "entries": []
+  }
+}
+```
+
+## Commands
+
+- `npm run dev`
+- `npm run deploy`
+- `npm run cf-typegen`
